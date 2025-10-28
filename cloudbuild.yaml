@@ -33,61 +33,83 @@ steps:
         pip install -r requirements.txt
 
         echo "Running pipeline for Team Atlas"
-        python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_TEAM_ATLAS_PROJECT_ID} \
-          --dataset-id ${_TEAM_TEAM_ATLAS_DATASET_ID} \
-          --cluster-count ${_TEAM_TEAM_ATLAS_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_TEAM_ATLAS_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_TEAM_ATLAS_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+        run_pipeline() {
+          local project_id="$1"
+          local dataset_id="$2"
+          local cluster_count="$3"
+          local recommendation_count="$4"
+          local sample_path="$5"
+
+          local args=(
+            python -m src.recommendation_engine.pipeline
+            --project-id "$project_id"
+            --dataset-id "$dataset_id"
+            --cluster-count "$cluster_count"
+            --recommendation-count "$recommendation_count"
+          )
+
+          if [ -n "$sample_path" ]; then
+            args+=(--sample-data "$sample_path")
+          fi
+
+          "${args[@]}"
+        }
+
+        run_pipeline \
+          "${_TEAM_TEAM_ATLAS_PROJECT_ID}" \
+          "${_TEAM_TEAM_ATLAS_DATASET_ID}" \
+          "${_TEAM_TEAM_ATLAS_CLUSTER_COUNT:-3}" \
+          "${_TEAM_TEAM_ATLAS_RECO_COUNT:-5}" \
+          "${_TEAM_TEAM_ATLAS_SAMPLE_DATA_PATH}"
 
         echo "Running pipeline for Team Borealis"
-        python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_TEAM_BOREALIS_PROJECT_ID} \
-          --dataset-id ${_TEAM_TEAM_BOREALIS_DATASET_ID} \
-          --cluster-count ${_TEAM_TEAM_BOREALIS_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_TEAM_BOREALIS_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_TEAM_BOREALIS_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+        run_pipeline \
+          "${_TEAM_TEAM_BOREALIS_PROJECT_ID}" \
+          "${_TEAM_TEAM_BOREALIS_DATASET_ID}" \
+          "${_TEAM_TEAM_BOREALIS_CLUSTER_COUNT:-3}" \
+          "${_TEAM_TEAM_BOREALIS_RECO_COUNT:-5}" \
+          "${_TEAM_TEAM_BOREALIS_SAMPLE_DATA_PATH}"
 
         echo "Running pipeline for Team Cosmo"
-        python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_TEAM_COSMO_PROJECT_ID} \
-          --dataset-id ${_TEAM_TEAM_COSMO_DATASET_ID} \
-          --cluster-count ${_TEAM_TEAM_COSMO_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_TEAM_COSMO_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_TEAM_COSMO_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+        run_pipeline \
+          "${_TEAM_TEAM_COSMO_PROJECT_ID}" \
+          "${_TEAM_TEAM_COSMO_DATASET_ID}" \
+          "${_TEAM_TEAM_COSMO_CLUSTER_COUNT:-3}" \
+          "${_TEAM_TEAM_COSMO_RECO_COUNT:-5}" \
+          "${_TEAM_TEAM_COSMO_SAMPLE_DATA_PATH}"
 
         echo "Running pipeline for Team Draco"
-        python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_TEAM_DRACO_PROJECT_ID} \
-          --dataset-id ${_TEAM_TEAM_DRACO_DATASET_ID} \
-          --cluster-count ${_TEAM_TEAM_DRACO_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_TEAM_DRACO_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_TEAM_DRACO_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+        run_pipeline \
+          "${_TEAM_TEAM_DRACO_PROJECT_ID}" \
+          "${_TEAM_TEAM_DRACO_DATASET_ID}" \
+          "${_TEAM_TEAM_DRACO_CLUSTER_COUNT:-3}" \
+          "${_TEAM_TEAM_DRACO_RECO_COUNT:-5}" \
+          "${_TEAM_TEAM_DRACO_SAMPLE_DATA_PATH}"
 
 substitutions:
   _TEAM_ATLAS_PROJECT_ID: example-project
   _TEAM_ATLAS_DATASET_ID: devops_activity
   _TEAM_ATLAS_CLUSTER_COUNT: "3"
   _TEAM_ATLAS_RECO_COUNT: "5"
-  _TEAM_ATLAS_SAMPLE_DATA_PATH: data/sample_logs.csv
+  _TEAM_ATLAS_SAMPLE_DATA_PATH: ""
 
   _TEAM_BOREALIS_PROJECT_ID: example-project
   _TEAM_BOREALIS_DATASET_ID: devops_activity
   _TEAM_BOREALIS_CLUSTER_COUNT: "3"
   _TEAM_BOREALIS_RECO_COUNT: "5"
-  _TEAM_BOREALIS_SAMPLE_DATA_PATH: data/sample_logs.csv
+  _TEAM_BOREALIS_SAMPLE_DATA_PATH: ""
 
   _TEAM_COSMO_PROJECT_ID: example-project
   _TEAM_COSMO_DATASET_ID: devops_activity
   _TEAM_COSMO_CLUSTER_COUNT: "3"
   _TEAM_COSMO_RECO_COUNT: "5"
-  _TEAM_COSMO_SAMPLE_DATA_PATH: data/sample_logs.csv
+  _TEAM_COSMO_SAMPLE_DATA_PATH: ""
 
   _TEAM_DRACO_PROJECT_ID: example-project
   _TEAM_DRACO_DATASET_ID: devops_activity
   _TEAM_DRACO_CLUSTER_COUNT: "3"
   _TEAM_DRACO_RECO_COUNT: "5"
-  _TEAM_DRACO_SAMPLE_DATA_PATH: data/sample_logs.csv
+  _TEAM_DRACO_SAMPLE_DATA_PATH: ""
 
 options:
   logging: CLOUD_LOGGING_ONLY

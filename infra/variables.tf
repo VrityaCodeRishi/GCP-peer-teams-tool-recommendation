@@ -138,7 +138,7 @@ variable "cloudbuild_recommendation_count" {
 variable "cloudbuild_sample_data_path" {
   type        = string
   description = "Sample data path supplied to Cloud Build executions."
-  default     = "data/sample_logs.csv"
+  default     = ""
 }
 
 variable "activity_trigger_schedule" {

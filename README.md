@@ -42,6 +42,7 @@ This repository deploys a GCP analytics and recommendation platform that ingests
    pip install -r requirements.txt
    python src/recommendation_engine/pipeline.py --sample-data data/sample_logs.csv
    ```
+   Cloud Build runs against live BigQuery data; keep the `--sample-data` flag for local smoke tests only.
 
 ## Next steps
 
@@ -50,4 +51,4 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 - Extend the recommender with qualitative feedback (chatbot, forms) for hybrid scoring.
 
 - Populate the per-team resources (Artifact Registry repository, artifact bucket, Pub/Sub topic) with synthetic builds to simulate real-world activity before log sinks are live.
-- Synthetic Cloud Build activity is scheduled for each team via Cloud Scheduler (`team-*-activity`). Jobs post directly to Cloud Build using the team service accounts to keep `team_activity` fed with fresh logs; inspect Cloud Scheduler or run `gcloud scheduler jobs run team-team-atlas-activity --location=us-central1` to trigger one on demand.
+- Synthetic Cloud Run heartbeats are scheduled for each team via Cloud Scheduler (`team-*-shared-heartbeat` and, where configured, `team-*-unique-heartbeat`). Jobs call the shared/unique services using the team service accounts; inspect Cloud Scheduler or run `gcloud scheduler jobs run team-team-atlas-shared-heartbeat --location=us-central1` to trigger one on demand.
