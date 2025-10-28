@@ -49,3 +49,5 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 - Extend the recommender with qualitative feedback (chatbot, forms) for hybrid scoring.
 
 - Populate the per-team resources (Artifact Registry repository, artifact bucket, Pub/Sub topic) with synthetic builds to simulate real-world activity before log sinks are live.
+
+
