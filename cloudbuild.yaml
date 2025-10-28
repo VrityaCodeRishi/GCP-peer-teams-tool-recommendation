@@ -1,5 +1,5 @@
 steps:
-  - name: gcr.io/cloud-builders/python
+  - name: us-central1-docker.pkg.dev/cloud-builders/official/python:latest
     entrypoint: bash
     args:
       - -c
