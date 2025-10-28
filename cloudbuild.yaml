@@ -10,35 +10,35 @@ steps:
 
         echo "Running pipeline for Team Atlas"
         python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_ATLAS_PROJECT_ID} \
-          --dataset-id ${_TEAM_ATLAS_DATASET_ID} \
-          --cluster-count ${_TEAM_ATLAS_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_ATLAS_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_ATLAS_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+          --project-id ${_TEAM_TEAM_ATLAS_PROJECT_ID} \
+          --dataset-id ${_TEAM_TEAM_ATLAS_DATASET_ID} \
+          --cluster-count ${_TEAM_TEAM_ATLAS_CLUSTER_COUNT:-3} \
+          --recommendation-count ${_TEAM_TEAM_ATLAS_RECO_COUNT:-5} \
+          --sample-data ${_TEAM_TEAM_ATLAS_SAMPLE_DATA_PATH:-data/sample_logs.csv}
 
         echo "Running pipeline for Team Borealis"
         python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_BOREALIS_PROJECT_ID} \
-          --dataset-id ${_TEAM_BOREALIS_DATASET_ID} \
-          --cluster-count ${_TEAM_BOREALIS_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_BOREALIS_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_BOREALIS_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+          --project-id ${_TEAM_TEAM_BOREALIS_PROJECT_ID} \
+          --dataset-id ${_TEAM_TEAM_BOREALIS_DATASET_ID} \
+          --cluster-count ${_TEAM_TEAM_BOREALIS_CLUSTER_COUNT:-3} \
+          --recommendation-count ${_TEAM_TEAM_BOREALIS_RECO_COUNT:-5} \
+          --sample-data ${_TEAM_TEAM_BOREALIS_SAMPLE_DATA_PATH:-data/sample_logs.csv}
 
         echo "Running pipeline for Team Cosmo"
         python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_COSMO_PROJECT_ID} \
-          --dataset-id ${_TEAM_COSMO_DATASET_ID} \
-          --cluster-count ${_TEAM_COSMO_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_COSMO_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_COSMO_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+          --project-id ${_TEAM_TEAM_COSMO_PROJECT_ID} \
+          --dataset-id ${_TEAM_TEAM_COSMO_DATASET_ID} \
+          --cluster-count ${_TEAM_TEAM_COSMO_CLUSTER_COUNT:-3} \
+          --recommendation-count ${_TEAM_TEAM_COSMO_RECO_COUNT:-5} \
+          --sample-data ${_TEAM_TEAM_COSMO_SAMPLE_DATA_PATH:-data/sample_logs.csv}
 
         echo "Running pipeline for Team Draco"
         python -m src.recommendation_engine.pipeline \
-          --project-id ${_TEAM_DRACO_PROJECT_ID} \
-          --dataset-id ${_TEAM_DRACO_DATASET_ID} \
-          --cluster-count ${_TEAM_DRACO_CLUSTER_COUNT:-3} \
-          --recommendation-count ${_TEAM_DRACO_RECO_COUNT:-5} \
-          --sample-data ${_TEAM_DRACO_SAMPLE_DATA_PATH:-data/sample_logs.csv}
+          --project-id ${_TEAM_TEAM_DRACO_PROJECT_ID} \
+          --dataset-id ${_TEAM_TEAM_DRACO_DATASET_ID} \
+          --cluster-count ${_TEAM_TEAM_DRACO_CLUSTER_COUNT:-3} \
+          --recommendation-count ${_TEAM_TEAM_DRACO_RECO_COUNT:-5} \
+          --sample-data ${_TEAM_TEAM_DRACO_SAMPLE_DATA_PATH:-data/sample_logs.csv}
 
 substitutions:
   _TEAM_ATLAS_PROJECT_ID: example-project
