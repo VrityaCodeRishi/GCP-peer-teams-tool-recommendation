@@ -1,0 +1,40 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Jupyter & notebooks
+.ipynb_checkpoints/
+
+# Build and packaging
+build/
+dist/
+*.egg-info/
+
+# Logs and datasets generated locally
+artifacts/
+*.log
+
+# Terraform local state
+terraform.tfstate
+terraform.tfstate.*
+*.tfvars
+*.tfvars.json
+.terraform/
+
+# IDE files
+.DS_Store
+.idea/
+.vscode/
+
+# Misc
+*.bak
+*.swp
+*.swo

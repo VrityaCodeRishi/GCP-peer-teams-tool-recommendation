@@ -1,0 +1,11 @@
+event_timestamp,team_id,tool_name,action_type,outcome,satisfaction_score,latency_ms
+2025-10-20T08:15:30Z,team-atlas,Cloud Build,build_deploy,success,5,42000
+2025-10-20T09:01:10Z,team-atlas,Artifact Registry,push_image,success,4,1800
+2025-10-20T11:45:12Z,team-borealis,Pub/Sub,automate_alert,failure,2,600
+2025-10-20T12:33:48Z,team-borealis,Security Command Center,scan_summary,warning,3,950
+2025-10-20T14:22:05Z,team-cosmo,Cloud Deploy,release,success,4,7200
+2025-10-20T15:06:31Z,team-cosmo,Cloud Build,build_deploy,success,5,39000
+2025-10-20T16:55:48Z,team-draco,Workflows,orchestrate_pipeline,success,5,2100
+2025-10-20T18:12:19Z,team-draco,Cloud Build,build_deploy,failure,1,43000
+2025-10-20T19:47:02Z,team-atlas,Pub/Sub,automate_alert,success,4,850
+2025-10-20T21:33:11Z,team-borealis,Artifact Registry,pull_image,success,3,1200

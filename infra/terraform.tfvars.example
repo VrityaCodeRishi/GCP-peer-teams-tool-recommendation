@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars and customize values.
+
+project_id           = "my-gcp-project"
+region               = "us-central1"
+location             = "US"
+dataset_id           = "devops_activity"
+artifact_bucket_name = "devops-recommendation-artifacts-1234"
+shared_artifact_repo_id   = "devops-shared-repo"
+shared_team_bucket_name   = "devops-shared-team-artifacts-1234"
+
+# Optional: override team-specific logging filters.
+# team_configs = {
+#   "team-atlas" = {
+#     display_name     = "Team Atlas"
+#     log_filter       = "resource.type=\"cloud_build_build\" AND jsonPayload.team_id=\"team-atlas\""
+#     dedicated_repo   = true
+#     dedicated_bucket = false
+#   }
+# }
