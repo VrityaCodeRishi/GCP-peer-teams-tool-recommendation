@@ -129,6 +129,15 @@ resource "google_project_iam_member" "cloudbuild_logs_writer" {
   member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
+
+# Grant Viewer role to Cloud Build service account for log streaming
+resource "google_project_iam_member" "cloudbuild_viewer" {
+  project = var.project_id
+  role    = "roles/viewer"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+
 # Grant BigQuery permissions (if Cloud Build needs to write to BQ)
 resource "google_project_iam_member" "cloudbuild_bigquery_editor" {
   project = var.project_id
