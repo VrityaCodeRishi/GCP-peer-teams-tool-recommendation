@@ -10,8 +10,10 @@ import pandas as pd
 
 try:
     from google.cloud import bigquery
+    from google.auth import exceptions as auth_exceptions  # type: ignore
 except ImportError:  # pragma: no cover - optional dependency for local runs
     bigquery = None  # type: ignore
+    auth_exceptions = None  # type: ignore
 
 from .config import PipelineConfig
 
@@ -27,7 +29,14 @@ class DataIngestion:
 
     def __post_init__(self) -> None:
         if self.client is None and bigquery is not None:
-            self.client = bigquery.Client(project=self.config.project_id)
+            try:
+                self.client = bigquery.Client(project=self.config.project_id)
+            except Exception as exc:  # pragma: no cover - relies on ADC
+                if auth_exceptions and isinstance(exc, auth_exceptions.DefaultCredentialsError):
+                    LOGGER.warning("BigQuery credentials not found; falling back to sample/local data. Details: %s", exc)
+                    self.client = None
+                else:
+                    raise
 
     def load_activity_frame(self, sample_path: Optional[Path] = None) -> pd.DataFrame:
         """Return a DataFrame with activity logs."""
