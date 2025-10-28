@@ -10,6 +10,7 @@ locals {
     "cloudscheduler.googleapis.com",
     "run.googleapis.com",
     "iam.googleapis.com",
+    "cloudfunctions.googleapis.com",
   ]
 
   team_runtime = {
@@ -183,6 +184,134 @@ resource "google_artifact_registry_repository" "shared_team" {
   mode          = "STANDARD_REPOSITORY"
   labels        = var.labels
 }
+
+
+# ========================================
+# Cloud Function for Activity Generation
+# ========================================
+
+# Create a storage bucket for Cloud Function source code
+resource "google_storage_bucket" "function_source" {
+  name          = "${var.project_id}-function-source"
+  location      = var.location
+  force_destroy = true
+  
+  uniform_bucket_level_access = true
+  labels                      = var.labels
+}
+
+# Archive the function source code
+data "archive_file" "activity_generator_source" {
+  type        = "zip"
+  source_dir  = "${path.module}/../functions/activity-generator"
+  output_path = "${path.module}/../.terraform/activity-generator.zip"
+}
+
+# Upload the function source to GCS
+resource "google_storage_bucket_object" "activity_generator_zip" {
+  name   = "activity-generator-${data.archive_file.activity_generator_source.output_md5}.zip"
+  bucket = google_storage_bucket.function_source.name
+  source = data.archive_file.activity_generator_source.output_path
+}
+
+# Create service account for Cloud Function
+resource "google_service_account" "activity_generator" {
+  account_id   = "activity-generator"
+  display_name = "Activity Generator Cloud Function"
+  description  = "Service account for generating synthetic DevOps activity"
+}
+
+# Grant BigQuery permissions to function SA
+resource "google_project_iam_member" "function_bigquery_editor" {
+  project = var.project_id
+  role    = "roles/bigquery.dataEditor"
+  member  = "serviceAccount:${google_service_account.activity_generator.email}"
+}
+
+resource "google_project_iam_member" "function_bigquery_jobuser" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.activity_generator.email}"
+}
+
+# Deploy Cloud Function (Gen 2)
+resource "google_cloudfunctions2_function" "activity_generator" {
+  name        = "activity-generator"
+  location    = var.region
+  description = "Generates synthetic DevOps activity data for team_activity table"
+
+  build_config {
+    runtime     = "python312"
+    entry_point = "generate_activity"
+    
+    source {
+      storage_source {
+        bucket = google_storage_bucket.function_source.name
+        object = google_storage_bucket_object.activity_generator_zip.name
+      }
+    }
+  }
+
+  service_config {
+    max_instance_count    = 1
+    available_memory      = "256M"
+    timeout_seconds       = 60
+    service_account_email = google_service_account.activity_generator.email
+    
+    environment_variables = {
+      PROJECT_ID = var.project_id
+      DATASET_ID = var.dataset_id
+    }
+  }
+
+  depends_on = [
+    google_project_service.required,
+    google_bigquery_table.activity,
+  ]
+}
+
+# Allow public invocation (you can restrict this later)
+resource "google_cloud_run_service_iam_member" "function_invoker" {
+  project  = google_cloudfunctions2_function.activity_generator.project
+  location = google_cloudfunctions2_function.activity_generator.location
+  service  = google_cloudfunctions2_function.activity_generator.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+# Create Cloud Scheduler job to trigger function every 15 minutes
+resource "google_cloud_scheduler_job" "activity_generator_trigger" {
+  name        = "activity-generator-trigger"
+  description = "Triggers activity generator every 15 minutes"
+  schedule    = "*/15 * * * *"  # Every 15 minutes
+  time_zone   = "Etc/UTC"
+  region      = var.region
+
+  http_target {
+    http_method = "POST"
+    uri         = google_cloudfunctions2_function.activity_generator.service_config[0].uri
+    
+    body = base64encode(jsonencode({
+      events_per_team = 10  # Generate 10 events per team every 15 min
+    }))
+    
+    headers = {
+      "Content-Type" = "application/json"
+    }
+
+    oidc_token {
+      service_account_email = google_service_account.activity_generator.email
+    }
+  }
+
+  depends_on = [
+    google_cloudfunctions2_function.activity_generator,
+  ]
+}
+
+
+
+
 
 resource "google_storage_bucket" "shared_team" {
   name          = var.shared_team_bucket_name
@@ -552,4 +681,10 @@ output "cloudbuild_service_account_email" {
 output "artifact_bucket_name" {
   value       = google_storage_bucket.artifacts.name
   description = "Bucket storing pipeline artifacts and visualizations."
+}
+
+# Output the function URL
+output "activity_generator_url" {
+  value       = google_cloudfunctions2_function.activity_generator.service_config[0].uri
+  description = "URL to manually trigger the activity generator function"
 }
