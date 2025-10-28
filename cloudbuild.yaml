@@ -86,6 +86,15 @@ steps:
           "${_TEAM_TEAM_DRACO_RECO_COUNT:-5}" \
           "${_TEAM_TEAM_DRACO_SAMPLE_DATA_PATH}"
 
+  # NEW STEP: Upload artifacts to GCS
+  - name: gcr.io/cloud-builders/gsutil
+    args:
+      - '-m'
+      - 'cp'
+      - '-r'
+      - 'artifacts/*'
+      - 'gs://$PROJECT_ID-devops-reco-artifacts/artifacts/'
+
 substitutions:
   _TEAM_ATLAS_PROJECT_ID: example-project
   _TEAM_ATLAS_DATASET_ID: devops_activity

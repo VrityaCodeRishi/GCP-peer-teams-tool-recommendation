@@ -6,19 +6,14 @@ import os
 
 @functions_framework.http
 def generate_activity(request):
-    """
-    HTTP Cloud Function to generate synthetic DevOps activity data.
-    """
     project_id = os.environ.get('PROJECT_ID', 'buoyant-episode-386713')
     dataset_id = os.environ.get('DATASET_ID', 'devops_activity')
     table_id = f"{project_id}.{dataset_id}.team_activity"
     
     client = bigquery.Client(project=project_id)
     
-    # Team configurations
     teams = ["team-atlas", "team-borealis", "team-cosmo", "team-draco"]
     
-    # DevOps tools matching GCP services
     tools = [
         "cloud-build",
         "artifact-registry", 
@@ -30,7 +25,6 @@ def generate_activity(request):
         "terraform"
     ]
     
-    # Action types for each tool
     action_types = {
         "cloud-build": ["build", "deploy", "trigger"],
         "artifact-registry": ["push", "pull", "scan"],
@@ -44,11 +38,11 @@ def generate_activity(request):
     
     outcomes = ["success", "success", "success", "failure"]  # 75% success rate
     
-    # Generate events
+
     rows_to_insert = []
     current_time = datetime.utcnow()
     
-    # Get number of events from request, default to 20 per team
+
     request_json = request.get_json(silent=True)
     events_per_team = 20
     if request_json and 'events_per_team' in request_json:
@@ -56,13 +50,11 @@ def generate_activity(request):
     
     for team in teams:
         for i in range(events_per_team):
-            # Generate events spread over the last hour
             event_time = current_time - timedelta(minutes=random.randint(0, 60))
             tool = random.choice(tools)
             action = random.choice(action_types[tool])
             outcome = random.choice(outcomes)
-            
-            # Success events have better latency and satisfaction
+
             if outcome == "success":
                 latency = random.randint(50, 2000)
                 satisfaction = random.randint(3, 5)
@@ -80,7 +72,7 @@ def generate_activity(request):
                 "latency_ms": latency
             })
     
-    # Insert rows into BigQuery
+
     try:
         errors = client.insert_rows_json(table_id, rows_to_insert)
         if errors:
@@ -101,10 +93,7 @@ def generate_activity(request):
 
 @functions_framework.cloud_event
 def generate_activity_pubsub(cloud_event):
-    """
-    Pub/Sub triggered version of the function.
-    """
-    # You can add custom logic here based on Pub/Sub message
+
     class MockRequest:
         def get_json(self, silent=True):
             return {"events_per_team": 20}
