@@ -60,6 +60,12 @@ resource "google_project_iam_member" "runner_logging" {
   member  = "serviceAccount:${google_service_account.runner.email}"
 }
 
+resource "google_project_iam_member" "runner_logging_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.runner.email}"
+}
+
 resource "google_artifact_registry_repository" "shared_team" {
   location      = var.region
   repository_id = var.shared_artifact_repo_id
