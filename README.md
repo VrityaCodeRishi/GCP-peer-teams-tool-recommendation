@@ -7,7 +7,7 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 - `infra/` &mdash; Terraform configuration that provisions log sinks, BigQuery datasets, Pub/Sub topics, service accounts, and (optionally) Cloud Build triggers when GitHub settings are supplied.
 - `src/` &mdash; Python package that cleans log data, engineers features, clusters teams, scores recommendations, and produces visualizations.
 - `data/` &mdash; Sample synthetic datasets that mirror the BigQuery schema for local experimentation.
-- `docs/` &mdash; Architecture diagrams, playbooks, and operational context.
+- `docs/` &mdash; Architecture diagrams, playbooks, and operational context (including `activity_generation.md` for synthetic workload details).
 
 ## High-level architecture
 
@@ -50,3 +50,4 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 - Extend the recommender with qualitative feedback (chatbot, forms) for hybrid scoring.
 
 - Populate the per-team resources (Artifact Registry repository, artifact bucket, Pub/Sub topic) with synthetic builds to simulate real-world activity before log sinks are live.
+- Synthetic Cloud Build activity is scheduled for each team via Cloud Scheduler (`team-*-activity`). Jobs post directly to Cloud Build using the team service accounts to keep `team_activity` fed with fresh logs; inspect Cloud Scheduler or run `gcloud scheduler jobs run team-team-atlas-activity --location=us-central1` to trigger one on demand.

@@ -17,6 +17,7 @@
 - **Artifact storage**: Teams can share the platform-wide repository/bucket or opt into dedicated `team-<team>-repo` and `<project>-<team>-artifacts` resources for isolation.
 - **Feedback Pub/Sub topic/subscription** `team-<team>-feedback` feeding satisfaction scores back to the pipeline.
 - **Configuration knobs**: Toggle `dedicated_repo` / `dedicated_bucket` inside `infra/variables.tf:30` to choose between shared or isolated storage per team.
+- **Synthetic activity**: Cloud Scheduler jobs (`team-*-activity`) submit lightweight Cloud Build jobs for each team service account so `team_activity` always has fresh events when real pipelines are not yet emitting data.
 
 ### Visualization & delivery
 - **BigQuery views** expose curated fact tables for Looker Studio dashboards.

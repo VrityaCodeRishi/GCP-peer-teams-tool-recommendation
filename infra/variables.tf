@@ -135,3 +135,9 @@ variable "cloudbuild_sample_data_path" {
   description = "Sample data path supplied to Cloud Build executions."
   default     = "data/sample_logs.csv"
 }
+
+variable "activity_trigger_schedule" {
+  type        = string
+  description = "Cron schedule for synthetic Cloud Build activity per team."
+  default     = "0 */6 * * *"
+}

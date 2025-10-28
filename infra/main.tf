@@ -7,6 +7,7 @@ locals {
     "workflows.googleapis.com",
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
+    "cloudscheduler.googleapis.com",
   ]
 
   team_runtime = {
@@ -42,6 +43,11 @@ resource "google_service_account" "runner" {
   display_name = "DevOps Recommendation Runner"
 }
 
+resource "google_service_account" "activity_scheduler" {
+  account_id   = "devops-activity-scheduler"
+  display_name = "DevOps Activity Scheduler"
+}
+
 resource "google_project_iam_member" "runner_bigquery" {
   project = var.project_id
   role    = "roles/bigquery.dataEditor"
@@ -58,6 +64,12 @@ resource "google_project_iam_member" "runner_pubsub" {
   project = var.project_id
   role    = "roles/pubsub.subscriber"
   member  = "serviceAccount:${google_service_account.runner.email}"
+}
+
+resource "google_project_iam_member" "scheduler_cloudbuild" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.editor"
+  member  = "serviceAccount:${google_service_account.activity_scheduler.email}"
 }
 
 resource "google_project_iam_member" "runner_logging" {
@@ -268,6 +280,52 @@ resource "google_cloudbuild_trigger" "recommendation" {
   depends_on = [
     google_project_service.required,
     google_service_account.runner,
+  ]
+}
+
+resource "google_cloud_scheduler_job" "team_activity" {
+  for_each = var.team_configs
+
+  project     = var.project_id
+  region      = var.region
+  name        = "team-${each.key}-activity"
+  schedule    = var.activity_trigger_schedule
+  time_zone   = "Etc/UTC"
+  description = "Generates synthetic Cloud Build activity for ${each.value.display_name}."
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/builds"
+
+    headers = {
+      "Content-Type" = "application/json"
+    }
+
+    body = base64encode(jsonencode({
+      steps = [{
+        name       = "python:3.12-slim"
+        entrypoint = "bash"
+        args = [
+          "-c",
+          "echo 'Simulated build for ${each.value.display_name}' && python - <<'PY'\\nfrom datetime import datetime\\nprint('Team ${each.key} build at', datetime.utcnow())\\nPY",
+        ]
+      }]
+      timeout        = "120s"
+      options        = { logging = "CLOUD_LOGGING_ONLY" }
+      serviceAccount = module.team_sinks[each.key].team_service_account_email
+      tags           = ["team-${each.key}", "synthetic-activity"]
+    }))
+
+    oauth_token {
+      service_account_email = google_service_account.activity_scheduler.email
+    }
+  }
+
+  attempt_deadline = "60s"
+
+  depends_on = [
+    google_project_iam_member.scheduler_cloudbuild,
+    module.team_sinks,
   ]
 }
 
