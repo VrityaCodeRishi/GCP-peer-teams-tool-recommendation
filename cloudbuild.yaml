@@ -1,4 +1,28 @@
 steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/devops-shared-repo/shared-service:latest
+      - src/cloud_run/shared
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - us-central1-docker.pkg.dev/$PROJECT_ID/devops-shared-repo/shared-service:latest
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/devops-shared-repo/unique-service:latest
+      - src/cloud_run/unique
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - us-central1-docker.pkg.dev/$PROJECT_ID/devops-shared-repo/unique-service:latest
+
   - name: python:3.12-slim
     entrypoint: bash
     args:

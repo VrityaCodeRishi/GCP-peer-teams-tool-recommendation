@@ -8,6 +8,7 @@ locals {
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com",
+    "run.googleapis.com",
   ]
 
   team_runtime = {
@@ -29,6 +30,17 @@ locals {
   }
 
   cloudbuild_trigger_enabled = length(trimspace(var.github_owner)) > 0 && length(trimspace(var.github_repo)) > 0 && length(trimspace(var.cloudbuild_repository)) > 0
+
+  shared_service_image = "us-central1-docker.pkg.dev/${var.project_id}/${var.shared_artifact_repo_id}/shared-service:latest"
+  unique_service_image = "us-central1-docker.pkg.dev/${var.project_id}/${var.shared_artifact_repo_id}/unique-service:latest"
+
+  teams_with_dedicated_service = {
+    for team_id, cfg in var.team_configs : team_id => cfg if cfg.dedicated_service
+  }
+}
+
+data "google_project" "current" {
+  project_id = var.project_id
 }
 
 resource "google_project_service" "required" {
@@ -41,11 +53,6 @@ resource "google_project_service" "required" {
 resource "google_service_account" "runner" {
   account_id   = "devops-reco-runner"
   display_name = "DevOps Recommendation Runner"
-}
-
-resource "google_service_account" "activity_scheduler" {
-  account_id   = "devops-activity-scheduler"
-  display_name = "DevOps Activity Scheduler"
 }
 
 resource "google_project_iam_member" "runner_bigquery" {
@@ -66,10 +73,10 @@ resource "google_project_iam_member" "runner_pubsub" {
   member  = "serviceAccount:${google_service_account.runner.email}"
 }
 
-resource "google_project_iam_member" "scheduler_cloudbuild" {
+resource "google_project_iam_member" "cloudbuild_artifact_writer" {
   project = var.project_id
-  role    = "roles/cloudbuild.builds.editor"
-  member  = "serviceAccount:${google_service_account.activity_scheduler.email}"
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
 }
 
 resource "google_project_iam_member" "runner_logging" {
@@ -283,49 +290,144 @@ resource "google_cloudbuild_trigger" "recommendation" {
   ]
 }
 
-resource "google_cloud_scheduler_job" "team_activity" {
+resource "google_cloud_run_v2_service" "shared" {
+  name     = "shared-heartbeat"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    service_account = google_service_account.runner.email
+
+    containers {
+      image = local.shared_service_image
+    }
+  }
+
+  ingress = "INGRESS_TRAFFIC_ALL"
+
+  depends_on = [
+    google_project_service.required,
+    google_project_iam_member.cloudbuild_artifact_writer,
+  ]
+}
+
+resource "google_cloud_run_v2_service" "team_unique" {
+  for_each = local.teams_with_dedicated_service
+
+  name     = "team-${each.key}-unique"
+  location = var.region
+  project  = var.project_id
+
+  template {
+    service_account = module.team_sinks[each.key].team_service_account_email
+
+    containers {
+      image = local.unique_service_image
+
+      env {
+        name  = "TEAM_ID"
+        value = each.key
+      }
+
+      env {
+        name  = "SERVICE_NAME"
+        value = "team-${each.key}-unique-service"
+      }
+    }
+  }
+
+  ingress = "INGRESS_TRAFFIC_ALL"
+
+  depends_on = [
+    google_project_service.required,
+    module.team_sinks,
+    google_project_iam_member.cloudbuild_artifact_writer,
+  ]
+}
+
+resource "google_cloud_run_v2_service_iam_member" "shared_invoker" {
+  for_each = var.team_configs
+
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.shared.name
+  member   = "serviceAccount:${module.team_sinks[each.key].team_service_account_email}"
+  role     = "roles/run.invoker"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "unique_invoker" {
+  for_each = local.teams_with_dedicated_service
+
+  project  = var.project_id
+  location = var.region
+  name     = google_cloud_run_v2_service.team_unique[each.key].name
+  member   = "serviceAccount:${module.team_sinks[each.key].team_service_account_email}"
+  role     = "roles/run.invoker"
+}
+
+resource "google_service_account_iam_member" "scheduler_impersonation" {
+  for_each = var.team_configs
+
+  service_account_id = "projects/${var.project_id}/serviceAccounts/${module.team_sinks[each.key].team_service_account_email}"
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
+}
+
+resource "google_cloud_scheduler_job" "shared_activity" {
   for_each = var.team_configs
 
   project     = var.project_id
   region      = var.region
-  name        = "team-${each.key}-activity"
+  name        = "team-${each.key}-shared-heartbeat"
   schedule    = var.activity_trigger_schedule
   time_zone   = "Etc/UTC"
-  description = "Generates synthetic Cloud Build activity for ${each.value.display_name}."
+  description = "Invokes shared Cloud Run heartbeat for ${each.value.display_name}."
 
   http_target {
-    http_method = "POST"
-    uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/builds"
+    http_method = "GET"
+    uri         = "${google_cloud_run_v2_service.shared.uri}/heartbeat/${each.key}"
 
-    headers = {
-      "Content-Type" = "application/json"
-    }
-
-    body = base64encode(jsonencode({
-      steps = [{
-        name       = "python:3.12-slim"
-        entrypoint = "bash"
-        args = [
-          "-c",
-          "echo 'Simulated build for ${each.value.display_name}' && python - <<'PY'\\nfrom datetime import datetime\\nprint('Team ${each.key} build at', datetime.utcnow())\\nPY",
-        ]
-      }]
-      timeout        = "120s"
-      options        = { logging = "CLOUD_LOGGING_ONLY" }
-      serviceAccount = module.team_sinks[each.key].team_service_account_email
-      tags           = ["team-${each.key}", "synthetic-activity"]
-    }))
-
-    oauth_token {
-      service_account_email = google_service_account.activity_scheduler.email
+    oidc_token {
+      service_account_email = module.team_sinks[each.key].team_service_account_email
+      audience              = google_cloud_run_v2_service.shared.uri
     }
   }
 
   attempt_deadline = "60s"
 
   depends_on = [
-    google_project_iam_member.scheduler_cloudbuild,
-    module.team_sinks,
+    google_cloud_run_v2_service.shared,
+    google_cloud_run_v2_service_iam_member.shared_invoker,
+    google_service_account_iam_member.scheduler_impersonation,
+  ]
+}
+
+resource "google_cloud_scheduler_job" "unique_activity" {
+  for_each = local.teams_with_dedicated_service
+
+  project     = var.project_id
+  region      = var.region
+  name        = "team-${each.key}-unique-heartbeat"
+  schedule    = var.activity_trigger_schedule
+  time_zone   = "Etc/UTC"
+  description = "Invokes unique Cloud Run heartbeat for ${each.value.display_name}."
+
+  http_target {
+    http_method = "GET"
+    uri         = "${google_cloud_run_v2_service.team_unique[each.key].uri}/ping"
+
+    oidc_token {
+      service_account_email = module.team_sinks[each.key].team_service_account_email
+      audience              = google_cloud_run_v2_service.team_unique[each.key].uri
+    }
+  }
+
+  attempt_deadline = "60s"
+
+  depends_on = [
+    google_cloud_run_v2_service.team_unique,
+    google_cloud_run_v2_service_iam_member.unique_invoker,
+    google_service_account_iam_member.scheduler_impersonation,
   ]
 }
 

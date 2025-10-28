@@ -30,35 +30,40 @@ variable "artifact_bucket_name" {
 variable "team_configs" {
   description = "Map of team identifiers to logging sink filters and resource preferences."
   type = map(object({
-    display_name     = string
-    log_filter       = string
-    dedicated_repo   = bool
-    dedicated_bucket = bool
+    display_name      = string
+    log_filter        = string
+    dedicated_repo    = bool
+    dedicated_bucket  = bool
+    dedicated_service = bool
   }))
   default = {
     "team-atlas" = {
-      display_name     = "Team Atlas"
-      log_filter       = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-atlas\" OR protoPayload.authenticationInfo.principalEmail=\"team-atlas\")"
-      dedicated_repo   = true
-      dedicated_bucket = true
+      display_name      = "Team Atlas"
+      log_filter        = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-atlas\" OR protoPayload.authenticationInfo.principalEmail=\"team-atlas\")"
+      dedicated_repo    = true
+      dedicated_bucket  = true
+      dedicated_service = true
     }
     "team-borealis" = {
-      display_name     = "Team Borealis"
-      log_filter       = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-borealis\" OR protoPayload.authenticationInfo.principalEmail=\"team-borealis\")"
-      dedicated_repo   = false
-      dedicated_bucket = true
+      display_name      = "Team Borealis"
+      log_filter        = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-borealis\" OR protoPayload.authenticationInfo.principalEmail=\"team-borealis\")"
+      dedicated_repo    = false
+      dedicated_bucket  = true
+      dedicated_service = false
     }
     "team-cosmo" = {
-      display_name     = "Team Cosmo"
-      log_filter       = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-cosmo\" OR protoPayload.authenticationInfo.principalEmail=\"team-cosmo\")"
-      dedicated_repo   = true
-      dedicated_bucket = false
+      display_name      = "Team Cosmo"
+      log_filter        = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-cosmo\" OR protoPayload.authenticationInfo.principalEmail=\"team-cosmo\")"
+      dedicated_repo    = true
+      dedicated_bucket  = false
+      dedicated_service = true
     }
     "team-draco" = {
-      display_name     = "Team Draco"
-      log_filter       = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-draco\" OR protoPayload.authenticationInfo.principalEmail=\"team-draco\")"
-      dedicated_repo   = false
-      dedicated_bucket = false
+      display_name      = "Team Draco"
+      log_filter        = "resource.type=(\"cloud_build_build\" OR \"audited_resource\") AND (jsonPayload.team_id=\"team-draco\" OR protoPayload.authenticationInfo.principalEmail=\"team-draco\")"
+      dedicated_repo    = false
+      dedicated_bucket  = false
+      dedicated_service = false
     }
   }
 }
