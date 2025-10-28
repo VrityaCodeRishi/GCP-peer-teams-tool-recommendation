@@ -9,6 +9,7 @@ locals {
     "cloudbuild.googleapis.com",
     "cloudscheduler.googleapis.com",
     "run.googleapis.com",
+    "iam.googleapis.com",
   ]
 
   team_runtime = {
@@ -50,9 +51,13 @@ resource "google_project_service" "required" {
   disable_on_destroy = false
 }
 
+# ========================================
+# Service Account for Analytics Pipeline
+# ========================================
 resource "google_service_account" "runner" {
   account_id   = "devops-reco-runner"
   display_name = "DevOps Recommendation Runner"
+  description  = "Service account for running analytics and recommendation pipeline"
 }
 
 resource "google_project_iam_member" "runner_bigquery" {
@@ -73,12 +78,6 @@ resource "google_project_iam_member" "runner_pubsub" {
   member  = "serviceAccount:${google_service_account.runner.email}"
 }
 
-resource "google_project_iam_member" "cloudbuild_artifact_writer" {
-  project = var.project_id
-  role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${data.google_project.current.number}@cloudbuild.gserviceaccount.com"
-}
-
 resource "google_project_iam_member" "runner_logging" {
   project = var.project_id
   role    = "roles/logging.viewer"
@@ -91,6 +90,82 @@ resource "google_project_iam_member" "runner_logging_writer" {
   member  = "serviceAccount:${google_service_account.runner.email}"
 }
 
+# ========================================
+# Service Account for Cloud Build
+# ========================================
+resource "google_service_account" "cloudbuild_sa" {
+  account_id   = "cloudbuild-custom"
+  display_name = "Custom Cloud Build Service Account"
+  description  = "Service account for Cloud Build with necessary permissions for building and deploying"
+  
+  depends_on = [google_project_service.required]
+}
+
+# Grant Artifact Registry Writer permissions
+resource "google_project_iam_member" "cloudbuild_artifact_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Grant Cloud Build Builder permissions
+resource "google_project_iam_member" "cloudbuild_builder" {
+  project = var.project_id
+  role    = "roles/cloudbuild.builds.builder"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Grant Storage Admin permissions (for build artifacts and buckets)
+resource "google_project_iam_member" "cloudbuild_storage_admin" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Grant Logs Writer permissions
+resource "google_project_iam_member" "cloudbuild_logs_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Grant BigQuery permissions (if Cloud Build needs to write to BQ)
+resource "google_project_iam_member" "cloudbuild_bigquery_editor" {
+  project = var.project_id
+  role    = "roles/bigquery.dataEditor"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+resource "google_project_iam_member" "cloudbuild_bigquery_jobuser" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Grant Cloud Run Admin permissions (for deploying Cloud Run services)
+resource "google_project_iam_member" "cloudbuild_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Allow the service account to act as itself (required for Cloud Build triggers)
+resource "google_service_account_iam_member" "cloudbuild_sa_user" {
+  service_account_id = google_service_account.cloudbuild_sa.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# Allow Cloud Build SA to impersonate the runner SA (if builds need to deploy services using runner SA)
+resource "google_service_account_iam_member" "cloudbuild_runner_impersonation" {
+  service_account_id = google_service_account.runner.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
+}
+
+# ========================================
+# Infrastructure Resources
+# ========================================
 resource "google_artifact_registry_repository" "shared_team" {
   location      = var.region
   repository_id = var.shared_artifact_repo_id
@@ -145,6 +220,9 @@ resource "google_storage_bucket_iam_member" "runner_bucket_admin" {
   member = "serviceAccount:${google_service_account.runner.email}"
 }
 
+# ========================================
+# BigQuery Resources
+# ========================================
 resource "google_bigquery_dataset" "activity" {
   dataset_id = var.dataset_id
   project    = var.project_id
@@ -210,6 +288,9 @@ resource "google_bigquery_table" "recommendations" {
   labels = var.labels
 }
 
+# ========================================
+# Team Configuration Module
+# ========================================
 module "team_sinks" {
   for_each = var.team_configs
 
@@ -248,6 +329,9 @@ resource "google_bigquery_dataset_iam_member" "sink_writers" {
   member     = each.value.sink_writer_identity
 }
 
+# ========================================
+# Cloud Build Trigger
+# ========================================
 resource "google_cloudbuild_trigger" "recommendation" {
   count = local.cloudbuild_trigger_enabled ? 1 : 0
 
@@ -255,7 +339,7 @@ resource "google_cloudbuild_trigger" "recommendation" {
   location        = var.region
   name            = "devops-recommendation"
   description     = "Runs the recommendation pipeline when changes land in GitHub."
-  service_account = google_service_account.runner.id
+  service_account = google_service_account.cloudbuild_sa.id
 
   repository_event_config {
     repository = var.cloudbuild_repository
@@ -286,10 +370,17 @@ resource "google_cloudbuild_trigger" "recommendation" {
 
   depends_on = [
     google_project_service.required,
-    google_service_account.runner,
+    google_service_account.cloudbuild_sa,
+    google_service_account_iam_member.cloudbuild_sa_user,
+    google_project_iam_member.cloudbuild_artifact_writer,
+    google_project_iam_member.cloudbuild_builder,
+    google_project_iam_member.cloudbuild_storage_admin,
   ]
 }
 
+# ========================================
+# Cloud Run Services
+# ========================================
 resource "google_cloud_run_v2_service" "shared" {
   name     = "shared-heartbeat"
   location = var.region
@@ -308,6 +399,7 @@ resource "google_cloud_run_v2_service" "shared" {
   depends_on = [
     google_project_service.required,
     google_project_iam_member.cloudbuild_artifact_writer,
+    google_service_account.cloudbuild_sa,
   ]
 }
 
@@ -342,6 +434,7 @@ resource "google_cloud_run_v2_service" "team_unique" {
     google_project_service.required,
     module.team_sinks,
     google_project_iam_member.cloudbuild_artifact_writer,
+    google_service_account.cloudbuild_sa,
   ]
 }
 
@@ -365,6 +458,9 @@ resource "google_cloud_run_v2_service_iam_member" "unique_invoker" {
   role     = "roles/run.invoker"
 }
 
+# ========================================
+# Cloud Scheduler Jobs
+# ========================================
 resource "google_service_account_iam_member" "scheduler_impersonation" {
   for_each = var.team_configs
 
@@ -431,9 +527,17 @@ resource "google_cloud_scheduler_job" "unique_activity" {
   ]
 }
 
+# ========================================
+# Outputs
+# ========================================
 output "runner_service_account_email" {
   value       = google_service_account.runner.email
   description = "Service account that executes the analytics pipeline."
+}
+
+output "cloudbuild_service_account_email" {
+  value       = google_service_account.cloudbuild_sa.email
+  description = "Custom service account used by Cloud Build for building and deploying."
 }
 
 output "artifact_bucket_name" {
