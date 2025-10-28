@@ -1,5 +1,5 @@
 steps:
-  - name: us-central1-docker.pkg.dev/cloud-builders/official/python:latest
+  - name: python:3.12-slim
     entrypoint: bash
     args:
       - -c
