@@ -56,7 +56,7 @@ def run_pipeline(config: PipelineConfig, sample_data: Optional[Path] = None) -> 
     recommendation_df.to_csv(recommendation_path, index=False)
     LOGGER.info("Wrote recommendations to %s", recommendation_path)
 
-    if ingestion.client and sample_data is None and bigquery is not None:
+    if ingestion.client and bigquery is not None:
         table_id = config.recommendation_table_fqn
         LOGGER.info("Publishing recommendations to BigQuery table %s", table_id)
         load_job_config = bigquery.LoadJobConfig(
