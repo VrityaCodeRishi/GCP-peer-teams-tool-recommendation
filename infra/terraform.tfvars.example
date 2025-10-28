@@ -17,3 +17,15 @@ shared_team_bucket_name   = "devops-shared-team-artifacts-1234"
 #     dedicated_bucket = false
 #   }
 # }
+
+# Cloud Build trigger configuration
+# github_owner          = "your-github-org"
+# github_repo           = "your-repository"
+# github_branch_regex   = "^main$"
+# cloudbuild_repository  = "projects/<project>/locations/<region>/connections/<connection>/repositories/<repo>"
+# team_runtime_overrides = {
+#   "team-atlas" = {
+#     project_id = "custom-project"
+#     dataset_id = "custom_dataset"
+#   }
+# }

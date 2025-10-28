@@ -4,7 +4,7 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 
 ## Repository layout
 
-- `infra/` &mdash; Terraform configuration that provisions log sinks, BigQuery datasets, Pub/Sub topics, and service accounts for the analytics pipeline.
+- `infra/` &mdash; Terraform configuration that provisions log sinks, BigQuery datasets, Pub/Sub topics, service accounts, and (optionally) Cloud Build triggers when GitHub settings are supplied.
 - `src/` &mdash; Python package that cleans log data, engineers features, clusters teams, scores recommendations, and produces visualizations.
 - `data/` &mdash; Sample synthetic datasets that mirror the BigQuery schema for local experimentation.
 - `docs/` &mdash; Architecture diagrams, playbooks, and operational context.
@@ -27,14 +27,15 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 ## Getting started
 
 1. Copy `infra/terraform.tfvars.example` to `infra/terraform.tfvars` and provide project IDs, region, and billing configurations.
-2. Review/enable the required GCP services enumerated in `infra/main.tf` (Terraform enables them on apply).
-3. Run Terraform:
+2. (Optional) Populate `github_owner`/`github_repo` and the `cloudbuild_repository` resource path (from the Cloud Build console) in `infra/terraform.tfvars` to let Terraform create a Cloud Build trigger tied to this repo.
+3. Review/enable the required GCP services enumerated in `infra/main.tf` (Terraform enables them on apply).
+4. Run Terraform:
    ```bash
    cd infra
    terraform init
    terraform apply
    ```
-4. Install Python dependencies and run the sample notebook or pipeline job:
+5. Install Python dependencies and run the sample notebook or pipeline job:
    ```bash
    python -m venv .venv
    source .venv/bin/activate
@@ -49,5 +50,3 @@ This repository deploys a GCP analytics and recommendation platform that ingests
 - Extend the recommender with qualitative feedback (chatbot, forms) for hybrid scoring.
 
 - Populate the per-team resources (Artifact Registry repository, artifact bucket, Pub/Sub topic) with synthetic builds to simulate real-world activity before log sinks are live.
-
-

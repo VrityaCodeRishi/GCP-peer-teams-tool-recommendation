@@ -8,6 +8,26 @@ locals {
     "artifactregistry.googleapis.com",
     "cloudbuild.googleapis.com",
   ]
+
+  team_runtime = {
+    for team_id, _cfg in var.team_configs :
+    team_id => merge(
+      {
+        project_id = var.project_id
+        dataset_id = var.dataset_id
+      },
+      lookup(
+        var.team_runtime_overrides,
+        team_id,
+        {
+          project_id = var.project_id
+          dataset_id = var.dataset_id
+        }
+      )
+    )
+  }
+
+  cloudbuild_trigger_enabled = length(trimspace(var.github_owner)) > 0 && length(trimspace(var.github_repo)) > 0 && length(trimspace(var.cloudbuild_repository)) > 0
 }
 
 resource "google_project_service" "required" {
@@ -195,6 +215,48 @@ resource "google_bigquery_dataset_iam_member" "sink_writers" {
   dataset_id = google_bigquery_dataset.activity.dataset_id
   role       = "roles/bigquery.dataEditor"
   member     = each.value.sink_writer_identity
+}
+
+resource "google_cloudbuild_trigger" "recommendation" {
+  count = local.cloudbuild_trigger_enabled ? 1 : 0
+
+  project         = var.project_id
+  location        = var.region
+  name            = "devops-recommendation"
+  description     = "Runs the recommendation pipeline when changes land in GitHub."
+  service_account = google_service_account.runner.id
+
+  repository_event_config {
+    repository = var.cloudbuild_repository
+    push {
+      branch = var.github_branch_regex
+    }
+  }
+
+  filename = "cloudbuild.yaml"
+
+  substitutions = merge(
+    { for team_id, runtime in local.team_runtime :
+      "_TEAM_${upper(replace(team_id, "-", "_"))}_PROJECT_ID" => runtime.project_id
+    },
+    { for team_id, runtime in local.team_runtime :
+      "_TEAM_${upper(replace(team_id, "-", "_"))}_DATASET_ID" => runtime.dataset_id
+    },
+    { for team_id in keys(local.team_runtime) :
+      "_TEAM_${upper(replace(team_id, "-", "_"))}_CLUSTER_COUNT" => tostring(var.cloudbuild_cluster_count)
+    },
+    { for team_id in keys(local.team_runtime) :
+      "_TEAM_${upper(replace(team_id, "-", "_"))}_RECO_COUNT" => tostring(var.cloudbuild_recommendation_count)
+    },
+    { for team_id in keys(local.team_runtime) :
+      "_TEAM_${upper(replace(team_id, "-", "_"))}_SAMPLE_DATA_PATH" => var.cloudbuild_sample_data_path
+    }
+  )
+
+  depends_on = [
+    google_project_service.required,
+    google_service_account.runner,
+  ]
 }
 
 output "runner_service_account_email" {

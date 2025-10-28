@@ -84,3 +84,54 @@ variable "labels" {
     environment = "development"
   }
 }
+
+variable "github_owner" {
+  type        = string
+  description = "GitHub organization or user that owns the repository used for Cloud Build triggers."
+  default     = ""
+}
+
+variable "github_repo" {
+  type        = string
+  description = "GitHub repository name used for Cloud Build triggers (informational only)."
+  default     = ""
+}
+
+variable "github_branch_regex" {
+  type        = string
+  description = "Regular expression that matches branches to trigger Cloud Build."
+  default     = "^main$"
+}
+
+variable "cloudbuild_repository" {
+  type        = string
+  description = "Full resource name of the Cloud Build connected repository (projects/<project>/locations/<region>/connections/<connection>/repositories/<repo>)."
+  default     = ""
+}
+
+variable "team_runtime_overrides" {
+  description = "Optional per-team overrides for Cloud Build substitutions."
+  type = map(object({
+    project_id = string
+    dataset_id = string
+  }))
+  default = {}
+}
+
+variable "cloudbuild_cluster_count" {
+  type        = number
+  description = "Default cluster count used in Cloud Build pipeline executions."
+  default     = 3
+}
+
+variable "cloudbuild_recommendation_count" {
+  type        = number
+  description = "Default recommendation count used in Cloud Build pipeline executions."
+  default     = 5
+}
+
+variable "cloudbuild_sample_data_path" {
+  type        = string
+  description = "Sample data path supplied to Cloud Build executions."
+  default     = "data/sample_logs.csv"
+}
