@@ -52,9 +52,7 @@ resource "google_project_service" "required" {
   disable_on_destroy = false
 }
 
-# ========================================
-# Service Account for Analytics Pipeline
-# ========================================
+
 resource "google_service_account" "runner" {
   account_id   = "devops-reco-runner"
   display_name = "DevOps Recommendation Runner"
@@ -91,9 +89,7 @@ resource "google_project_iam_member" "runner_logging_writer" {
   member  = "serviceAccount:${google_service_account.runner.email}"
 }
 
-# ========================================
-# Service Account for Cloud Build
-# ========================================
+
 resource "google_service_account" "cloudbuild_sa" {
   account_id   = "cloudbuild-custom"
   display_name = "Custom Cloud Build Service Account"
@@ -102,28 +98,28 @@ resource "google_service_account" "cloudbuild_sa" {
   depends_on = [google_project_service.required]
 }
 
-# Grant Artifact Registry Writer permissions
+
 resource "google_project_iam_member" "cloudbuild_artifact_writer" {
   project = var.project_id
   role    = "roles/artifactregistry.writer"
   member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# Grant Cloud Build Builder permissions
+
 resource "google_project_iam_member" "cloudbuild_builder" {
   project = var.project_id
   role    = "roles/cloudbuild.builds.builder"
   member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# Grant Storage Admin permissions (for build artifacts and buckets)
+
 resource "google_project_iam_member" "cloudbuild_storage_admin" {
   project = var.project_id
   role    = "roles/storage.admin"
   member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# Grant Logs Writer permissions
+
 resource "google_project_iam_member" "cloudbuild_logs_writer" {
   project = var.project_id
   role    = "roles/logging.logWriter"
@@ -131,7 +127,7 @@ resource "google_project_iam_member" "cloudbuild_logs_writer" {
 }
 
 
-# Grant Viewer role to Cloud Build service account for log streaming
+
 resource "google_project_iam_member" "cloudbuild_viewer" {
   project = var.project_id
   role    = "roles/viewer"
@@ -139,7 +135,7 @@ resource "google_project_iam_member" "cloudbuild_viewer" {
 }
 
 
-# Grant BigQuery permissions (if Cloud Build needs to write to BQ)
+
 resource "google_project_iam_member" "cloudbuild_bigquery_editor" {
   project = var.project_id
   role    = "roles/bigquery.dataEditor"
@@ -152,30 +148,27 @@ resource "google_project_iam_member" "cloudbuild_bigquery_jobuser" {
   member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# Grant Cloud Run Admin permissions (for deploying Cloud Run services)
+
 resource "google_project_iam_member" "cloudbuild_run_admin" {
   project = var.project_id
   role    = "roles/run.admin"
   member  = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# Allow the service account to act as itself (required for Cloud Build triggers)
 resource "google_service_account_iam_member" "cloudbuild_sa_user" {
   service_account_id = google_service_account.cloudbuild_sa.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# Allow Cloud Build SA to impersonate the runner SA (if builds need to deploy services using runner SA)
+
 resource "google_service_account_iam_member" "cloudbuild_runner_impersonation" {
   service_account_id = google_service_account.runner.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.cloudbuild_sa.email}"
 }
 
-# ========================================
-# Infrastructure Resources
-# ========================================
+
 resource "google_artifact_registry_repository" "shared_team" {
   location      = var.region
   repository_id = var.shared_artifact_repo_id
@@ -186,11 +179,6 @@ resource "google_artifact_registry_repository" "shared_team" {
 }
 
 
-# ========================================
-# Cloud Function for Activity Generation
-# ========================================
-
-# Create a storage bucket for Cloud Function source code
 resource "google_storage_bucket" "function_source" {
   name          = "${var.project_id}-function-source"
   location      = var.location
@@ -200,28 +188,28 @@ resource "google_storage_bucket" "function_source" {
   labels                      = var.labels
 }
 
-# Archive the function source code
+
 data "archive_file" "activity_generator_source" {
   type        = "zip"
   source_dir  = "${path.module}/../functions/activity-generator"
   output_path = "${path.module}/../.terraform/activity-generator.zip"
 }
 
-# Upload the function source to GCS
+
 resource "google_storage_bucket_object" "activity_generator_zip" {
   name   = "activity-generator-${data.archive_file.activity_generator_source.output_md5}.zip"
   bucket = google_storage_bucket.function_source.name
   source = data.archive_file.activity_generator_source.output_path
 }
 
-# Create service account for Cloud Function
+
 resource "google_service_account" "activity_generator" {
   account_id   = "activity-generator"
   display_name = "Activity Generator Cloud Function"
   description  = "Service account for generating synthetic DevOps activity"
 }
 
-# Grant BigQuery permissions to function SA
+
 resource "google_project_iam_member" "function_bigquery_editor" {
   project = var.project_id
   role    = "roles/bigquery.dataEditor"
@@ -234,7 +222,7 @@ resource "google_project_iam_member" "function_bigquery_jobuser" {
   member  = "serviceAccount:${google_service_account.activity_generator.email}"
 }
 
-# Deploy Cloud Function (Gen 2)
+
 resource "google_cloudfunctions2_function" "activity_generator" {
   name        = "activity-generator"
   location    = var.region
@@ -270,7 +258,7 @@ resource "google_cloudfunctions2_function" "activity_generator" {
   ]
 }
 
-# Allow public invocation (you can restrict this later)
+
 resource "google_cloud_run_service_iam_member" "function_invoker" {
   project  = google_cloudfunctions2_function.activity_generator.project
   location = google_cloudfunctions2_function.activity_generator.location
@@ -279,7 +267,7 @@ resource "google_cloud_run_service_iam_member" "function_invoker" {
   member   = "allUsers"
 }
 
-# Create Cloud Scheduler job to trigger function every 15 minutes
+
 resource "google_cloud_scheduler_job" "activity_generator_trigger" {
   name        = "activity-generator-trigger"
   description = "Triggers activity generator every 15 minutes"
@@ -358,9 +346,7 @@ resource "google_storage_bucket_iam_member" "runner_bucket_admin" {
   member = "serviceAccount:${google_service_account.runner.email}"
 }
 
-# ========================================
-# BigQuery Resources
-# ========================================
+
 resource "google_bigquery_dataset" "activity" {
   dataset_id = var.dataset_id
   project    = var.project_id
@@ -426,9 +412,7 @@ resource "google_bigquery_table" "recommendations" {
   labels = var.labels
 }
 
-# ========================================
-# Team Configuration Module
-# ========================================
+
 module "team_sinks" {
   for_each = var.team_configs
 
@@ -467,9 +451,7 @@ resource "google_bigquery_dataset_iam_member" "sink_writers" {
   member     = each.value.sink_writer_identity
 }
 
-# ========================================
-# Cloud Build Trigger
-# ========================================
+
 resource "google_cloudbuild_trigger" "recommendation" {
   count = local.cloudbuild_trigger_enabled ? 1 : 0
 
@@ -516,9 +498,7 @@ resource "google_cloudbuild_trigger" "recommendation" {
   ]
 }
 
-# ========================================
-# Cloud Run Services
-# ========================================
+
 resource "google_cloud_run_v2_service" "shared" {
   name     = "shared-heartbeat"
   location = var.region
@@ -596,9 +576,7 @@ resource "google_cloud_run_v2_service_iam_member" "unique_invoker" {
   role     = "roles/run.invoker"
 }
 
-# ========================================
-# Cloud Scheduler Jobs
-# ========================================
+
 resource "google_service_account_iam_member" "scheduler_impersonation" {
   for_each = var.team_configs
 
@@ -665,9 +643,6 @@ resource "google_cloud_scheduler_job" "unique_activity" {
   ]
 }
 
-# ========================================
-# Outputs
-# ========================================
 output "runner_service_account_email" {
   value       = google_service_account.runner.email
   description = "Service account that executes the analytics pipeline."
@@ -683,7 +658,7 @@ output "artifact_bucket_name" {
   description = "Bucket storing pipeline artifacts and visualizations."
 }
 
-# Output the function URL
+
 output "activity_generator_url" {
   value       = google_cloudfunctions2_function.activity_generator.service_config[0].uri
   description = "URL to manually trigger the activity generator function"

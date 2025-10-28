@@ -7,18 +7,16 @@ locals {
   artifact_repo_id   = substr("team-${replace(var.team_id, "_", "-")}-repo", 0, 63)
 }
 
-# ========================================
-# Logging Sink - FIXED
-# ========================================
+
 resource "google_logging_project_sink" "activity_sink" {
   name        = "team-${var.team_id}-activity-sink"
   project     = var.project_id
   description = "Exports DevOps activity logs for ${var.display_name}."
   
-  # FIXED: Point to specific table, not just dataset
+
   destination = "bigquery.googleapis.com/projects/${var.dataset_project}/datasets/${var.dataset_id}/tables/team_activity"
   
-  # FIXED: Enhanced filter to capture Cloud Run, Cloud Build, and custom logs
+
   filter = <<-EOT
     (
       (
@@ -54,7 +52,6 @@ resource "google_logging_project_sink" "activity_sink" {
   
   unique_writer_identity = true
   
-  # ADDED: Use partitioned tables for better performance
   bigquery_options {
     use_partitioned_tables = true
   }
